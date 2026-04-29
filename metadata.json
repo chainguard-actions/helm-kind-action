@@ -1,5 +1,6 @@
 {
   "owner": "helm",
   "name": "kind-action",
-  "visibility": ""
+  "visibility": "internal",
+  "description": "A GitHub Action for Kubernetes IN Docker - local clusters for testing Kubernetes"
 }
