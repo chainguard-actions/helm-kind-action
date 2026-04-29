@@ -1,6 +1,12 @@
 # helm/kind-action
 
-Hardened GitHub Action by [Chainguard](https://www.chainguard.dev).
+Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/helm/kind-action](https://github.com/helm/kind-action).
+
+## Versions
+
+| Version | Tag | Upstream commit |
+|---------|-----|-----------------|
+| v1.14.0 | [`v1.14.0`](https://github.com/chainguard-actions/kind-action/tree/v1.14.0) | — |
 
 ## Privacy
 
