@@ -1,0 +1,6 @@
+{
+  "owner": "helm",
+  "repo": "kind-action",
+  "version": "",
+  "url": "https://github.com/helm/kind-action"
+}
