@@ -1,6 +1,6 @@
 # helm/kind-action
 
-A GitHub Action for Kubernetes IN Docker - local clusters for testing Kubernetes
+Create a kind (Kubernetes IN Docker) cluster
 
 Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/helm/kind-action](https://github.com/helm/kind-action).
 
