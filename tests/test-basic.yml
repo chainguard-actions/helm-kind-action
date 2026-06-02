@@ -1,0 +1,29 @@
+name: Test basic kind cluster creation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          cluster_name: test-basic
+          wait: "60s"
+      - name: Assert kind cluster is running
+        run: |
+          echo "Checking kind cluster..."
+          kind get clusters
+          CLUSTERS=$(kind get clusters)
+          echo "clusters: $CLUSTERS"
+          if ! echo "$CLUSTERS" | grep -q "test-basic"; then
+            echo "FAIL: expected cluster 'test-basic' to exist"
+            exit 1
+          fi
+          echo "PASS: cluster 'test-basic' found"
+      - name: Assert kubectl can connect
+        run: |
+          echo "Checking kubectl connectivity..."
+          kubectl cluster-info --context kind-test-basic
+          echo "PASS: kubectl connected successfully"

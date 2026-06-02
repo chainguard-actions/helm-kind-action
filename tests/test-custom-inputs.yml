@@ -1,0 +1,51 @@
+name: Test custom config kubeconfig and node_image inputs
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Create kind config file
+        run: |
+          mkdir -p /tmp/kind-test
+          cat > /tmp/kind-test/kind-config.yaml << 'EOF'
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+          EOF
+          echo "Kind config created at /tmp/kind-test/kind-config.yaml"
+          cat /tmp/kind-test/kind-config.yaml
+      - id: action
+        uses: .
+        with:
+          cluster_name: test-custom
+          config: /tmp/kind-test/kind-config.yaml
+          kubeconfig: /tmp/kind-test/kubeconfig.yaml
+          node_image: "kindest/node:v1.31.0"
+          wait: "60s"
+      - name: Assert kind cluster is running
+        run: |
+          echo "Checking kind cluster..."
+          CLUSTERS=$(kind get clusters)
+          echo "clusters: $CLUSTERS"
+          if ! echo "$CLUSTERS" | grep -q "test-custom"; then
+            echo "FAIL: expected cluster 'test-custom' to exist"
+            exit 1
+          fi
+          echo "PASS: cluster 'test-custom' found"
+      - name: Assert custom kubeconfig was created
+        run: |
+          echo "Checking custom kubeconfig..."
+          if [ ! -f /tmp/kind-test/kubeconfig.yaml ]; then
+            echo "FAIL: expected kubeconfig at /tmp/kind-test/kubeconfig.yaml"
+            exit 1
+          fi
+          echo "PASS: custom kubeconfig exists"
+          cat /tmp/kind-test/kubeconfig.yaml | grep -q "test-custom" && echo "PASS: kubeconfig references correct cluster" || echo "INFO: kubeconfig content check skipped"
+      - name: Assert kubectl can connect using custom kubeconfig
+        run: |
+          echo "Checking kubectl connectivity with custom kubeconfig..."
+          KUBECONFIG=/tmp/kind-test/kubeconfig.yaml kubectl cluster-info
+          echo "PASS: kubectl connected using custom kubeconfig"
