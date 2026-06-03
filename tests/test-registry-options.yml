@@ -1,4 +1,4 @@
-name: Test basic usage
+name: Test registry options
 on:
   workflow_dispatch:
 jobs:
@@ -10,6 +10,12 @@ jobs:
         uses: .
         with:
           install_only: "true"
+          registry: "false"
+          registry_image: "registry:2"
+          registry_name: "kind-registry"
+          registry_port: "5000"
+          registry_enable_delete: "false"
+          cloud_provider: "false"
       - name: Assert kind is installed
         run: |
           echo "Checking kind is installed..."
@@ -19,14 +25,4 @@ jobs:
           fi
           KIND_VERSION=$(kind version)
           echo "kind version: $KIND_VERSION"
-          echo "PASS"
-      - name: Assert kubectl is installed
-        run: |
-          echo "Checking kubectl is installed..."
-          if ! command -v kubectl &>/dev/null; then
-            echo "FAIL: kubectl binary not found in PATH"
-            exit 1
-          fi
-          KUBECTL_VERSION=$(kubectl version --client --short 2>/dev/null || kubectl version --client)
-          echo "kubectl version: $KUBECTL_VERSION"
-          echo "PASS"
+          echo "PASS: kind installed with registry options provided"

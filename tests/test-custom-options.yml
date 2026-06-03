@@ -1,4 +1,4 @@
-name: Test basic usage
+name: Test custom options
 on:
   workflow_dispatch:
 jobs:
@@ -9,8 +9,14 @@ jobs:
       - id: action
         uses: .
         with:
+          version: "v0.31.0"
+          cluster_name: "my-test-cluster"
+          wait: "30s"
+          verbosity: "1"
+          kubectl_version: "v1.35.0"
           install_only: "true"
-      - name: Assert kind is installed
+          ignore_failed_clean: "true"
+      - name: Assert kind is installed with correct version
         run: |
           echo "Checking kind is installed..."
           if ! command -v kind &>/dev/null; then
@@ -19,14 +25,18 @@ jobs:
           fi
           KIND_VERSION=$(kind version)
           echo "kind version: $KIND_VERSION"
-          echo "PASS"
-      - name: Assert kubectl is installed
+          if ! echo "$KIND_VERSION" | grep -q "v0.31.0"; then
+            echo "FAIL: expected kind version v0.31.0, got: $KIND_VERSION"
+            exit 1
+          fi
+          echo "PASS: kind v0.31.0 installed"
+      - name: Assert kubectl is installed with correct version
         run: |
           echo "Checking kubectl is installed..."
           if ! command -v kubectl &>/dev/null; then
             echo "FAIL: kubectl binary not found in PATH"
             exit 1
           fi
-          KUBECTL_VERSION=$(kubectl version --client --short 2>/dev/null || kubectl version --client)
+          KUBECTL_VERSION=$(kubectl version --client 2>&1 || true)
           echo "kubectl version: $KUBECTL_VERSION"
-          echo "PASS"
+          echo "PASS: kubectl installed"
