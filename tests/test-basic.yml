@@ -1,4 +1,4 @@
-name: Test basic usage
+name: Test basic kind cluster creation
 on:
   workflow_dispatch:
 jobs:
@@ -9,24 +9,40 @@ jobs:
       - id: action
         uses: .
         with:
-          install_only: "true"
+          cluster_name: test-basic
+          wait: "60s"
+          version: "v0.31.0"
+          kubectl_version: "v1.35.0"
       - name: Assert kind is installed
         run: |
-          echo "Checking kind is installed..."
-          if ! command -v kind &>/dev/null; then
-            echo "FAIL: kind binary not found in PATH"
-            exit 1
-          fi
-          KIND_VERSION=$(kind version)
-          echo "kind version: $KIND_VERSION"
-          echo "PASS"
+          echo "Checking kind binary..."
+          which kind || { echo "FAIL: kind not found in PATH"; exit 1; }
+          kind --version
+          echo "PASS: kind is installed"
       - name: Assert kubectl is installed
         run: |
-          echo "Checking kubectl is installed..."
-          if ! command -v kubectl &>/dev/null; then
-            echo "FAIL: kubectl binary not found in PATH"
+          echo "Checking kubectl binary..."
+          which kubectl || { echo "FAIL: kubectl not found in PATH"; exit 1; }
+          kubectl version --client
+          echo "PASS: kubectl is installed"
+      - name: Assert cluster is running
+        run: |
+          echo "Checking cluster nodes..."
+          kubectl get nodes || { echo "FAIL: could not get nodes"; exit 1; }
+          NODE_COUNT=$(kubectl get nodes --no-headers | wc -l)
+          echo "Node count: $NODE_COUNT"
+          if [ "$NODE_COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least 1 node"
             exit 1
           fi
-          KUBECTL_VERSION=$(kubectl version --client --short 2>/dev/null || kubectl version --client)
-          echo "kubectl version: $KUBECTL_VERSION"
-          echo "PASS"
+          echo "PASS: cluster has $NODE_COUNT node(s)"
+      - name: Assert cluster name
+        run: |
+          echo "Checking cluster name..."
+          CLUSTERS=$(kind get clusters)
+          echo "Clusters: $CLUSTERS"
+          if ! echo "$CLUSTERS" | grep -q "test-basic"; then
+            echo "FAIL: expected cluster 'test-basic' to exist"
+            exit 1
+          fi
+          echo "PASS: cluster 'test-basic' exists"

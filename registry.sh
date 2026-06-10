@@ -130,7 +130,9 @@ create_registry() {
     echo "127.0.0.1 $registry_name" | sudo tee -a /etc/hosts
 
     # Write registry address to output for subsequent steps
-    echo "LOCAL_REGISTRY=$registry_name:$registry_port" >> "$GITHUB_OUTPUT"
+    safe_registry_name=$(printf '%s' "$registry_name" | tr -d '\n\r')
+    safe_registry_port=$(printf '%s' "$registry_port" | tr -d '\n\r')
+    echo "LOCAL_REGISTRY=${safe_registry_name}:${safe_registry_port}" >> "$GITHUB_OUTPUT"
 }
 
 connect_registry() {

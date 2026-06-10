@@ -1,0 +1,47 @@
+name: Test input coverage (config, kubeconfig, node_image)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          cluster_name: test-coverage
+          version: "v0.31.0"
+          kubectl_version: "v1.35.0"
+          config: "${{ github.workspace }}/actions/hardened/helm--kind-action/v1.14.0/tests/fixtures/kind-config.yaml"
+          kubeconfig: "/tmp/test-kubeconfig"
+          node_image: "kindest/node:v1.31.0"
+          wait: "60s"
+      - name: Assert kind is installed
+        run: |
+          echo "Checking kind binary..."
+          which kind || { echo "FAIL: kind not found in PATH"; exit 1; }
+          kind --version
+          echo "PASS: kind is installed"
+      - name: Assert cluster was created
+        run: |
+          echo "Checking cluster exists..."
+          CLUSTERS=$(kind get clusters)
+          echo "Clusters: $CLUSTERS"
+          if ! echo "$CLUSTERS" | grep -q "test-coverage"; then
+            echo "FAIL: expected cluster 'test-coverage' to exist"
+            exit 1
+          fi
+          echo "PASS: cluster 'test-coverage' exists"
+      - name: Assert kubeconfig was written to custom path
+        run: |
+          echo "Checking custom kubeconfig path..."
+          if [ ! -f "/tmp/test-kubeconfig" ]; then
+            echo "FAIL: expected kubeconfig at /tmp/test-kubeconfig"
+            exit 1
+          fi
+          echo "PASS: kubeconfig exists at /tmp/test-kubeconfig"
+      - name: Assert cluster is accessible via custom kubeconfig
+        run: |
+          echo "Checking cluster nodes via custom kubeconfig..."
+          KUBECONFIG=/tmp/test-kubeconfig kubectl get nodes || { echo "FAIL: could not get nodes with custom kubeconfig"; exit 1; }
+          echo "PASS: cluster accessible via custom kubeconfig"

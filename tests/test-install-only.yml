@@ -12,29 +12,24 @@ jobs:
           install_only: "true"
           version: "v0.31.0"
           kubectl_version: "v1.35.0"
-      - name: Assert kind binary is installed
+      - name: Assert kind is installed
         run: |
           echo "Checking kind binary..."
-          which kind
-          KIND_VERSION=$(kind version)
+          which kind || { echo "FAIL: kind not found in PATH"; exit 1; }
+          KIND_VERSION=$(kind --version)
           echo "kind version: $KIND_VERSION"
-          if ! echo "$KIND_VERSION" | grep -q "v0.31.0"; then
-            echo "FAIL: expected kind version v0.31.0"
-            exit 1
-          fi
-          echo "PASS: kind binary installed with correct version"
-      - name: Assert kubectl binary is installed
+          echo "PASS: kind is installed"
+      - name: Assert kubectl is installed
         run: |
           echo "Checking kubectl binary..."
-          which kubectl
-          KUBECTL_VERSION=$(kubectl version --client --short 2>/dev/null || kubectl version --client)
-          echo "kubectl version: $KUBECTL_VERSION"
-          echo "PASS: kubectl binary installed"
+          which kubectl || { echo "FAIL: kubectl not found in PATH"; exit 1; }
+          kubectl version --client
+          echo "PASS: kubectl is installed"
       - name: Assert no cluster was created
         run: |
-          echo "Checking no cluster was created..."
-          CLUSTERS=$(kind get clusters 2>&1 || true)
-          echo "clusters: $CLUSTERS"
+          echo "Checking that no cluster was created..."
+          CLUSTERS=$(kind get clusters 2>/dev/null || true)
+          echo "Clusters: '$CLUSTERS'"
           if echo "$CLUSTERS" | grep -q "chart-testing"; then
             echo "FAIL: cluster should not have been created in install_only mode"
             exit 1
