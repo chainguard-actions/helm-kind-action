@@ -1,0 +1,32 @@
+name: Test custom node image
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          cluster_name: node-image-test
+          node_image: kindest/node:v1.31.0
+          wait: "60s"
+
+      - name: Assert cluster is running with expected node image
+        run: |
+          echo "Checking cluster nodes..."
+          kubectl get nodes -o wide
+          NODE_COUNT=$(kubectl get nodes --no-headers | wc -l)
+          echo "Node count: $NODE_COUNT"
+          if [ "$NODE_COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least 1 node"
+            exit 1
+          fi
+          echo "PASS: cluster is running with $NODE_COUNT node(s) using custom node image"
+
+      - name: Cleanup cluster
+        if: always()
+        run: |
+          kind delete cluster --name node-image-test || true

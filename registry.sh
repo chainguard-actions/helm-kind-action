@@ -124,7 +124,7 @@ create_registry() {
         --network bridge \
         -p "${registry_port}:5000" \
         -e REGISTRY_STORAGE_DELETE_ENABLED="$enable_delete" \
-        $registry_image
+        "$registry_image"
 
     # Local registry is available at $registry_name:$registry_port
     echo "127.0.0.1 $registry_name" | sudo tee -a /etc/hosts

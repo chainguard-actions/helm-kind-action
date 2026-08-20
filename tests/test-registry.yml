@@ -1,0 +1,48 @@
+name: Test local registry
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "v0.31.0"
+          cluster_name: "chart-testing"
+          wait: "60s"
+          kubectl_version: "v1.35.0"
+          registry: "true"
+          registry_name: "kind-registry"
+          registry_port: "5000"
+      - name: Assert kind cluster exists
+        run: |
+          echo "Checking kind cluster..."
+          CLUSTERS="$(kind get clusters 2>&1)"
+          echo "clusters: $CLUSTERS"
+          if ! echo "$CLUSTERS" | grep -q "chart-testing"; then
+            echo "FAIL: expected cluster 'chart-testing' to exist"
+            exit 1
+          fi
+          echo "PASS: cluster 'chart-testing' exists"
+      - name: Assert registry container is running
+        run: |
+          echo "Checking registry container..."
+          REGISTRY="$(docker ps --filter name=kind-registry --format '{{.Names}}' 2>&1)"
+          echo "registry container: $REGISTRY"
+          if ! echo "$REGISTRY" | grep -q "kind-registry"; then
+            echo "FAIL: expected registry container 'kind-registry' to be running"
+            exit 1
+          fi
+          echo "PASS: registry container 'kind-registry' is running"
+      - name: Assert registry is reachable on configured port
+        run: |
+          echo "Checking registry is reachable on port 5000..."
+          STATUS="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/v2/ 2>&1 || true)"
+          echo "registry HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "FAIL: expected registry to respond with 200, got: $STATUS"
+            exit 1
+          fi
+          echo "PASS: registry is reachable on port 5000"

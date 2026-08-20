@@ -1,0 +1,282 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - releases/*
+
+permissions: {}
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create kind cluster
+        uses: ./
+
+      - name: Test
+        run: |
+          kubectl cluster-info
+          kubectl get storageclass standard
+
+  test-with-custom-wait:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create kind cluster with custom wait
+        uses: ./
+        with:
+          wait: 120s
+
+      - name: Test
+        run: |
+          kubectl cluster-info
+          kubectl get storageclass standard
+
+
+  test-with-custom-verbosity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create kind cluster with custom verbosity
+        uses: ./
+        with:
+          verbosity: 10
+
+      - name: Test
+        run: |
+          kubectl cluster-info
+          kubectl get storageclass standard
+
+  test-with-custom-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create kind cluster with custom name
+        uses: ./
+        with:
+          cluster_name: "custom-name"
+
+      - name: Test
+        run: |
+          kubectl cluster-info
+          kubectl get storageclass standard
+
+  test-with-install-only:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Only install kind without starting a cluster
+        uses: ./
+        with:
+          install_only: true
+
+      - name: Test kind works and there is no cluster started
+        run: |
+          [[ $(kind get clusters | wc -l) -eq 0 ]]
+
+  test-with-custom-kind-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create kind cluster with custom name
+        uses: ./
+        with:
+          version: "v0.23.0"
+
+      - name: Test
+        run: |
+          kind version
+          kubectl cluster-info
+          kubectl get nodes
+
+  test-with-custom-kubeconfig:
+    runs-on: ubuntu-latest
+    env:
+      KUBECONFIG: "./kubeconfig"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create kind cluster with custom kubeconfig
+        uses: ./
+        with:
+          kubeconfig: "${{ env.KUBECONFIG }}"
+          cluster_name: "kube-config-test"
+
+      - name: Test
+        run: |
+          grep "kube-config-test" ${KUBECONFIG}
+
+  test-with-custom-kubectl-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create kind cluster with custom name
+        uses: ./
+        with:
+          kubectl_version: "v1.31.0"
+
+      - name: Test
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+  test-with-custom-node-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create kind cluster with custom name
+        uses: ./
+        with:
+          node_image: "kindest/node:v1.31.0"
+
+      - name: Test
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+  test-with-ignore-failed-clean:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create kind cluster with custom name
+        uses: ./
+        with:
+          kubectl_version: "v1.31.0"
+          ignore_failed_clean: true
+
+      - name: Test
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+  test-without-registry:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout
+          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+        - name: Create kind cluster without registry
+          uses: ./
+          with:
+            registry: false
+
+        - name: Test
+          run: |
+            kubectl cluster-info
+            kubectl get storageclass standard
+
+            if [[ -n "$(docker ps --filter "name=kind-registry" --format "{{.ID}}")" ]]; then
+              echo "Registry is present"
+              exit 1
+            fi
+
+  test-with-registry:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout
+          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+        - name: Create kind cluster with registry
+          id: kind
+          uses: ./
+          with:
+            registry: true
+            registry_name: custom-registry
+            registry_port: 5001
+
+        - name: Test
+          env:
+            LOCAL_REGISTRY: ${{ steps.kind.outputs.LOCAL_REGISTRY }}
+          run: |
+            kubectl cluster-info
+            kubectl get storageclass standard
+
+            if [[ -z "$(docker ps --filter "name=custom-registry" --format "{{.ID}}")" ]]; then
+              echo "Registry is not present"
+              exit 1
+            fi
+
+            docker pull busybox
+            docker tag busybox "$LOCAL_REGISTRY/localbusybox"
+            docker push "$LOCAL_REGISTRY/localbusybox"
+
+            kubectl create job test --image="$LOCAL_REGISTRY/localbusybox"
+            kubectl wait --for=condition=complete --timeout=30s job/test
+
+  test-with-registry-and-delete-enabled:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout
+          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+        - name: Create kind cluster with registry and delete enabled
+          id: kind
+          uses: ./
+          with:
+            registry: true
+            registry_name: custom-registry
+            registry_port: 5001
+            registry_enable_delete: true
+
+        - name: Test
+          env:
+            LOCAL_REGISTRY: ${{ steps.kind.outputs.LOCAL_REGISTRY }}
+          run: |
+            kubectl cluster-info
+            kubectl get storageclass standard
+
+            if [[ -z "$(docker ps --filter "name=custom-registry" --format "{{.ID}}")" ]]; then
+              echo "Registry is not present"
+              exit 1
+            fi
+
+            docker pull busybox
+            docker tag busybox "$LOCAL_REGISTRY/localbusybox"
+            
+            DIGEST=$(docker push "$LOCAL_REGISTRY/localbusybox" | grep -oE 'sha256:\w+')
+            
+            curl -X DELETE "$LOCAL_REGISTRY/v2/localbusybox/manifests/$DIGEST"
+            [[ "$(curl -Ls "$LOCAL_REGISTRY/v2/localbusybox/tags/list" | jq .tags)" == null ]]
+
+  test-with-cloud-provider-enabled:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout
+          uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+        - name: Create kind cluster with cloud provider
+          uses: ./
+          with:
+            cloud_provider: true
+
+        - name: Test
+          run: |
+            if ps aux | grep -v grep | grep cloud-provider-kind; then
+              echo "Cloud provider is present."
+            else
+              echo "Cloud provider is not present."
+              exit 1
+            fi        

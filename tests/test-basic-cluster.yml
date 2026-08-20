@@ -1,0 +1,45 @@
+name: Test basic cluster creation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "v0.31.0"
+          cluster_name: "chart-testing"
+          wait: "60s"
+          kubectl_version: "v1.35.0"
+      - name: Assert kind cluster exists
+        run: |
+          echo "Checking kind cluster..."
+          CLUSTERS="$(kind get clusters 2>&1)"
+          echo "clusters: $CLUSTERS"
+          if ! echo "$CLUSTERS" | grep -q "chart-testing"; then
+            echo "FAIL: expected cluster 'chart-testing' to exist"
+            exit 1
+          fi
+          echo "PASS: cluster 'chart-testing' exists"
+      - name: Assert kubectl can reach the cluster
+        run: |
+          echo "Checking kubectl connectivity..."
+          NODES="$(kubectl get nodes 2>&1)"
+          echo "nodes: $NODES"
+          if ! echo "$NODES" | grep -q "Ready"; then
+            echo "FAIL: expected at least one node in Ready state"
+            exit 1
+          fi
+          echo "PASS: cluster nodes are Ready"
+      - name: Assert kubeconfig is set
+        run: |
+          echo "Checking kubeconfig context..."
+          CONTEXT="$(kubectl config current-context 2>&1)"
+          echo "context: $CONTEXT"
+          if ! echo "$CONTEXT" | grep -q "kind-chart-testing"; then
+            echo "FAIL: expected kubeconfig context 'kind-chart-testing', got: $CONTEXT"
+            exit 1
+          fi
+          echo "PASS: kubeconfig context is correct"
