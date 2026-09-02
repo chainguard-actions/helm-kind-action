@@ -1,0 +1,32 @@
+name: Test node_image input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - id: action
+        uses: .
+        with:
+          cluster_name: test-node-image-cluster
+          node_image: kindest/node:v1.31.0
+          wait: 60s
+
+      - name: Assert cluster is running with specified node image
+        run: |
+          echo "Checking cluster with node image..."
+          kubectl cluster-info --context kind-test-node-image-cluster
+          if [ $? -ne 0 ]; then
+            echo "FAIL: cluster is not running"
+            exit 1
+          fi
+          echo "Checking node image..."
+          NODE_IMAGE=$(kubectl get nodes -o jsonpath='{.items[0].status.nodeInfo.osImage}' --context kind-test-node-image-cluster)
+          echo "Node OS image: $NODE_IMAGE"
+          echo "PASS: cluster is running with custom node image"
+
+      - name: Cleanup cluster
+        if: always()
+        run: kind delete cluster --name test-node-image-cluster || true

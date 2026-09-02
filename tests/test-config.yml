@@ -1,0 +1,38 @@
+name: Test config input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Write kind config file
+        run: |
+          cat > /tmp/kind-config.yaml << 'EOF'
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          cluster_name: test-config-cluster
+          config: /tmp/kind-config.yaml
+          wait: 60s
+
+      - name: Assert cluster is running
+        run: |
+          echo "Checking cluster..."
+          kubectl cluster-info --context kind-test-config-cluster
+          if [ $? -ne 0 ]; then
+            echo "FAIL: cluster is not running"
+            exit 1
+          fi
+          echo "PASS: cluster is running with config"
+
+      - name: Cleanup cluster
+        if: always()
+        run: kind delete cluster --name test-config-cluster || true

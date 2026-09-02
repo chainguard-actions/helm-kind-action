@@ -1,0 +1,41 @@
+name: Test basic kind cluster creation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          cluster_name: chart-testing
+          wait: "60s"
+      - name: Assert kind cluster is running
+        run: |
+          echo "Checking kind cluster..."
+          if ! kind get clusters | grep -q "chart-testing"; then
+            echo "FAIL: expected cluster 'chart-testing' not found"
+            kind get clusters
+            exit 1
+          fi
+          echo "PASS: cluster 'chart-testing' exists"
+      - name: Assert kubectl can reach the cluster
+        run: |
+          echo "Checking kubectl connectivity..."
+          if ! kubectl cluster-info; then
+            echo "FAIL: kubectl cannot reach the cluster"
+            exit 1
+          fi
+          echo "PASS: kubectl can reach the cluster"
+      - name: Assert nodes are ready
+        run: |
+          echo "Checking nodes..."
+          READY=$(kubectl get nodes --no-headers | grep -c " Ready")
+          echo "Ready nodes: $READY"
+          if [ "$READY" -lt 1 ]; then
+            echo "FAIL: no ready nodes found"
+            kubectl get nodes
+            exit 1
+          fi
+          echo "PASS: $READY node(s) ready"

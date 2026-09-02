@@ -1,0 +1,42 @@
+name: Test custom cluster name
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          cluster_name: my-test-cluster
+          wait: "60s"
+      - name: Assert custom-named cluster is running
+        run: |
+          echo "Checking for custom cluster name..."
+          if ! kind get clusters | grep -q "my-test-cluster"; then
+            echo "FAIL: expected cluster 'my-test-cluster' not found"
+            kind get clusters
+            exit 1
+          fi
+          echo "PASS: cluster 'my-test-cluster' exists"
+      - name: Assert default cluster name was not created
+        run: |
+          echo "Checking that default cluster name was not used..."
+          CLUSTERS=$(kind get clusters)
+          echo "All clusters: $CLUSTERS"
+          if echo "$CLUSTERS" | grep -q "^chart-testing$"; then
+            echo "FAIL: default cluster 'chart-testing' was created instead of custom name"
+            exit 1
+          fi
+          echo "PASS: only custom cluster name was created"
+      - name: Assert kubectl context points to custom cluster
+        run: |
+          echo "Checking kubectl context..."
+          CONTEXT=$(kubectl config current-context)
+          echo "Current context: $CONTEXT"
+          if ! echo "$CONTEXT" | grep -q "my-test-cluster"; then
+            echo "FAIL: kubectl context does not reference 'my-test-cluster', got: $CONTEXT"
+            exit 1
+          fi
+          echo "PASS: kubectl context references custom cluster"

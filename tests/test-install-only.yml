@@ -1,0 +1,43 @@
+name: Test install only (no cluster creation)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          install_only: "true"
+          version: "v0.33.0"
+      - name: Assert kind binary is installed
+        run: |
+          echo "Checking kind binary..."
+          if ! command -v kind; then
+            echo "FAIL: kind binary not found in PATH"
+            exit 1
+          fi
+          KIND_VERSION=$(kind version)
+          echo "kind version: $KIND_VERSION"
+          echo "PASS: kind is installed"
+      - name: Assert no cluster was created
+        run: |
+          echo "Checking that no cluster was created..."
+          CLUSTERS=$(kind get clusters 2>/dev/null || true)
+          echo "Clusters: '$CLUSTERS'"
+          if echo "$CLUSTERS" | grep -q "chart-testing"; then
+            echo "FAIL: cluster was created despite install_only=true"
+            exit 1
+          fi
+          echo "PASS: no cluster created (install_only mode)"
+      - name: Assert kubectl is installed
+        run: |
+          echo "Checking kubectl binary..."
+          if ! command -v kubectl; then
+            echo "FAIL: kubectl binary not found in PATH"
+            exit 1
+          fi
+          KUBECTL_VERSION=$(kubectl version --client --short 2>/dev/null || kubectl version --client)
+          echo "kubectl version: $KUBECTL_VERSION"
+          echo "PASS: kubectl is installed"
