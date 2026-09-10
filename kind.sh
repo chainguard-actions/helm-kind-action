@@ -80,8 +80,8 @@ main() {
     fi
 
     echo 'Adding kind directory to PATH...'
-    printf '%s' "${kind_dir}" | tr -d '\n\r' >> "${GITHUB_PATH}"
-    echo >> "${GITHUB_PATH}"
+    safe_kind_dir=$(printf '%s' "${kind_dir}" | tr -d '\n\r')
+    echo "${safe_kind_dir}" >> "${GITHUB_PATH}"
 
     local kubectl_dir="${cache_dir}/kubectl/bin/"
     if [[ ! -x "${kubectl_dir}/kubectl" ]]; then
@@ -89,8 +89,8 @@ main() {
     fi
 
     echo 'Adding kubectl directory to PATH...'
-    printf '%s' "${kubectl_dir}" | tr -d '\n\r' >> "${GITHUB_PATH}"
-    echo >> "${GITHUB_PATH}"
+    safe_kubectl_dir=$(printf '%s' "${kubectl_dir}" | tr -d '\n\r')
+    echo "${safe_kubectl_dir}" >> "${GITHUB_PATH}"
 
     "${kind_dir}/kind" version
     "${kubectl_dir}/kubectl" version --client=true

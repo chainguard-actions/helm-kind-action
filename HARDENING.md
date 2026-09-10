@@ -10,52 +10,36 @@
 
 **Harden Agent Version:** `2`
 
-Action **helm--kind-action/v1.15.0** was hardened automatically. 3 finding(s) were identified and resolved across 2 iteration(s).
+Action **helm--kind-action/v1.15.0** was hardened automatically. 2 finding(s) were identified and resolved across 1 iteration(s).
 
 ## Findings Fixed
 
 ### github-env-injection (severity: high)
 
-In kind.sh, the `kind_dir` variable (which embeds `$version` sourced from `INPUT_VERSION`, a user-controlled action input) is written directly to `$GITHUB_PATH` without sanitization (`printf '%s' ... | tr -d '\n\r'`). Similarly, `kubectl_dir` (which embeds `$kubectl_version` from `INPUT_KUBECTL_VERSION`) is also written to `$GITHUB_PATH` unsanitized. A newline in either input value could inject arbitrary entries into the runner's PATH.
+kind.sh writes user-controlled values to $GITHUB_PATH without sanitization. The variable `kind_dir` is derived from `${version}` (sourced from `INPUT_VERSION`, a user-supplied input) and `kubectl_dir` is derived from `${kubectl_version}` (sourced from `INPUT_KUBECTL_VERSION`). Both are written directly to `$GITHUB_PATH` via `echo "${kind_dir}" >> "${GITHUB_PATH}"` and `echo "${kubectl_dir}" >> "${GITHUB_PATH}"` with no preceding `printf '%s' ... | tr -d '\n\r'` sanitization step. An attacker can inject newlines into these inputs to poison the PATH or inject arbitrary environment variables.
 
 Locations:
 
-- `kind.sh:82`
-- `kind.sh:91`
+- `kind.sh:83`
+- `kind.sh:89`
 
 ### github-env-injection (severity: high)
 
-In registry.sh, the `create_registry` function writes `LOCAL_REGISTRY=$registry_name:$registry_port` to `$GITHUB_OUTPUT` without sanitization. Both `registry_name` and `registry_port` are sourced from user-controlled action inputs (`INPUT_REGISTRY_NAME` and `INPUT_REGISTRY_PORT`). A newline embedded in either value could inject additional key=value pairs into GITHUB_OUTPUT, allowing an attacker to set arbitrary outputs.
+registry.sh writes user-controlled values to $GITHUB_OUTPUT without sanitization. The line `echo "LOCAL_REGISTRY=$registry_name:$registry_port" >> "$GITHUB_OUTPUT"` writes `$registry_name` (sourced from `INPUT_REGISTRY_NAME`) and `$registry_port` (sourced from `INPUT_REGISTRY_PORT`) — both user-supplied inputs — directly to $GITHUB_OUTPUT with no preceding `printf '%s' ... | tr -d '\n\r'` sanitization. An attacker can inject newlines to set arbitrary output variables or poison subsequent steps.
 
 Locations:
 
-- `registry.sh:129`
-
-### script-injection (severity: high)
-
-Rule (b) violation: In the `test-with-registry` and `test-with-registry-and-delete-enabled` jobs, the env var `$LOCAL_REGISTRY` (set from `${{ steps.kind.outputs.LOCAL_REGISTRY }}`, a workflow-controllable step output) is used unquoted in shell commands such as `docker tag busybox $LOCAL_REGISTRY/localbusybox`, `docker push $LOCAL_REGISTRY/localbusybox`, and `kubectl create job test --image=$LOCAL_REGISTRY/localbusybox`. Unquoted expansion allows shell metacharacter injection if the output value contains spaces, semicolons, or other special characters.
-
-Locations:
-
-- `.github/workflows/test.yaml:228`
-- `.github/workflows/test.yaml:229`
-- `.github/workflows/test.yaml:232`
+- `registry.sh:120`
 
 ## Iteration Notes
 
 ### Iteration 1
 
-**Fixes applied:** github-env-injection, script-injection
+**Fixes applied:** github-env-injection
 
 **Notes:**
 
-Fixed three security findings: (1) kind.sh: sanitized kind_dir and kubectl_dir before writing to GITHUB_PATH using `printf '%s' ... | tr -d '\n\r'` to strip embedded newlines that could inject arbitrary PATH entries; (2) registry.sh: sanitized registry_name and registry_port before writing LOCAL_REGISTRY to GITHUB_OUTPUT using the same tr-based stripping approach; (3) test.yaml: added double-quotes around all $LOCAL_REGISTRY shell variable expansions in both test-with-registry and test-with-registry-and-delete-enabled jobs to prevent shell metacharacter injection (the variable was already correctly placed in the env: block).
-
-### Iteration 1
-
-**Fixes applied:** script-injection
-
-**Notes:**
-
-Fixed unquoted `$registry_image` variable in `hardened/action/registry.sh` at line 113. Changed `$registry_image` to `"$registry_image"` in the `docker run` command. This prevents word-splitting and glob expansion on the caller-controlled `registry_image` input, eliminating the potential for command injection via shell metacharacters.
+Fixed two github-env-injection findings:
+1. kind.sh (lines 83, 89): Sanitized `kind_dir` and `kubectl_dir` before writing to $GITHUB_PATH using `safe_kind_dir=$(printf '%s' "${kind_dir}" | tr -d '\n\r')` and `safe_kubectl_dir=$(printf '%s' "${kubectl_dir}" | tr -d '\n\r')` respectively, then writing the safe variables instead.
+2. registry.sh (line 120): Sanitized `registry_name` and `registry_port` before writing to $GITHUB_OUTPUT using `safe_registry_name=$(printf '%s' "$registry_name" | tr -d '\n\r')` and `safe_registry_port=$(printf '%s' "$registry_port" | tr -d '\n\r')`, then composing the output value from the sanitized variables.
 

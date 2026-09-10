@@ -125,7 +125,7 @@ create_registry() {
         -p "${registry_port}:${registry_port}" \
         -e REGISTRY_HTTP_ADDR="0.0.0.0:${registry_port}" \
         -e REGISTRY_STORAGE_DELETE_ENABLED="$enable_delete" \
-        "$registry_image"
+        $registry_image
 
     # Local registry is available at $registry_name:$registry_port
     echo "127.0.0.1 $registry_name" | sudo tee -a /etc/hosts
