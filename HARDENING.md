@@ -10,63 +10,44 @@
 
 **Harden Agent Version:** `2`
 
-Action **helm--kind-action/v1.14.0** was hardened automatically. 4 finding(s) were identified and resolved across 2 iteration(s).
+Action **helm--kind-action/v1.14.0** was hardened automatically. 3 finding(s) were identified and resolved across 1 iteration(s).
 
 ## Findings Fixed
 
 ### github-env-injection (severity: high)
 
-kind.sh writes unsanitized user-controlled input to $GITHUB_PATH. The variable `kind_dir` is constructed from `${version}` (sourced from INPUT_VERSION, a caller-controlled action input) and written directly to $GITHUB_PATH without the required `printf '%s' ... | tr -d '\n\r'` sanitization step. An attacker can inject newlines to add arbitrary entries to PATH. The same issue applies to `kubectl_dir` on the following write.
+kind.sh writes `kind_dir` to `$GITHUB_PATH` without sanitization. `kind_dir` is derived from `${RUNNER_TOOL_CACHE}/kind/${version}/${arch}`, where `version` comes from the `--version` argument (sourced from `INPUT_VERSION`, a caller-controlled action input) and `RUNNER_TOOL_CACHE` is an inherited workflow-controlled environment variable. Neither value is passed through `printf '%s' ... | tr -d '\n\r'` before the write: `echo "${kind_dir}" >> "${GITHUB_PATH}"`. An attacker-controlled newline in `INPUT_VERSION` or `RUNNER_TOOL_CACHE` could inject arbitrary entries into `$GITHUB_PATH`.
 
 Locations:
 
-- `kind.sh:83`
-- `kind.sh:91`
+- `kind.sh:75`
 
 ### github-env-injection (severity: high)
 
-registry.sh writes unsanitized user-controlled inputs to $GITHUB_OUTPUT. The value `LOCAL_REGISTRY=$registry_name:$registry_port` is written directly to $GITHUB_OUTPUT, where `registry_name` comes from INPUT_REGISTRY_NAME and `registry_port` from INPUT_REGISTRY_PORT — both caller-controlled action inputs. No `printf '%s' ... | tr -d '\n\r'` sanitization is applied before the write, allowing newline injection to poison subsequent step outputs.
+kind.sh writes `kubectl_dir` to `$GITHUB_PATH` without sanitization. `kubectl_dir` is derived from `${RUNNER_TOOL_CACHE}/kind/${version}/${arch}`, where `version` comes from `INPUT_KUBECTL_VERSION` (a caller-controlled action input) and `RUNNER_TOOL_CACHE` is an inherited workflow-controlled environment variable. The write `echo "${kubectl_dir}" >> "${GITHUB_PATH}"` is not preceded by the required `printf '%s' ... | tr -d '\n\r'` sanitization step.
 
 Locations:
 
-- `registry.sh:133`
+- `kind.sh:81`
 
-### permissions (severity: medium)
+### github-env-injection (severity: high)
 
-The workflow file .github/workflows/test.yaml has no top-level `permissions:` key and none of its 14 jobs define a job-level `permissions:` block. This means the workflow runs with the default (potentially broad) GITHUB_TOKEN permissions. A minimal explicit permissions block (e.g., `permissions: {}` or specific scopes) should be added.
-
-Locations:
-
-- `.github/workflows/test.yaml:1`
-
-### script-injection (severity: high)
-
-Rule (b) violation: The env var LOCAL_REGISTRY is populated from `${{ steps.kind.outputs.LOCAL_REGISTRY }}` (a steps.*.outputs.* context, which is workflow-controllable) and then expanded unquoted inside run: shell commands in two jobs. Unquoted shell expansion allows an attacker-controlled value to inject shell metacharacters. Affected lines include: `docker tag busybox $LOCAL_REGISTRY/localbusybox`, `docker push $LOCAL_REGISTRY/localbusybox`, `kubectl create job test --image=$LOCAL_REGISTRY/localbusybox` (test-with-registry job), and `docker tag busybox $LOCAL_REGISTRY/localbusybox`, `DIGEST=$(docker push $LOCAL_REGISTRY/localbusybox | ...)`, `curl -X DELETE $LOCAL_REGISTRY/v2/...` (test-with-registry-and-delete-enabled job). All occurrences of $LOCAL_REGISTRY should be double-quoted as "$LOCAL_REGISTRY".
+registry.sh writes `LOCAL_REGISTRY=$registry_name:$registry_port` to `$GITHUB_OUTPUT` without sanitization. Both `registry_name` and `registry_port` are sourced from caller-controlled action inputs (`INPUT_REGISTRY_NAME` and `INPUT_REGISTRY_PORT` respectively, passed via command-line arguments). The write `echo "LOCAL_REGISTRY=$registry_name:$registry_port" >> "$GITHUB_OUTPUT"` is not preceded by the required `printf '%s' ... | tr -d '\n\r'` sanitization step, allowing a newline in either input to inject arbitrary key=value pairs into `$GITHUB_OUTPUT`.
 
 Locations:
 
-- `.github/workflows/test.yaml:221`
-- `.github/workflows/test.yaml:222`
-- `.github/workflows/test.yaml:224`
-- `.github/workflows/test.yaml:255`
-- `.github/workflows/test.yaml:257`
-- `.github/workflows/test.yaml:259`
+- `registry.sh:116`
 
 ## Iteration Notes
 
 ### Iteration 1
 
-**Fixes applied:** github-env-injection, permissions, script-injection
+**Fixes applied:** github-env-injection
 
 **Notes:**
 
-Fixed 4 findings across 3 files: (1) kind.sh lines 83 & 91: sanitized kind_dir and kubectl_dir with `printf '%s' ... | tr -d '\n\r'` before writing to GITHUB_PATH; (2) registry.sh line 133: sanitized registry_name and registry_port with `printf '%s' ... | tr -d '\n\r'` before writing LOCAL_REGISTRY to GITHUB_OUTPUT; (3) .github/workflows/test.yaml: added `permissions: {}` top-level block; (4) .github/workflows/test.yaml: double-quoted all 6 occurrences of $LOCAL_REGISTRY in run: commands across the test-with-registry and test-with-registry-and-delete-enabled jobs.
-
-### Iteration 2
-
-**Fixes applied:** script-injection
-
-**Notes:**
-
-Fixed unquoted shell variable expansion in registry.sh. Changed `$registry_image` to `"$registry_image"` in the `docker run` command inside the `create_registry()` function (line 107). This prevents shell word splitting and command injection via the `INPUT_REGISTRY_IMAGE` workflow input, which is passed through `main.sh` as `--registry-image` to `registry.sh` and stored in the `registry_image` local variable.
+Fixed three github-env-injection findings:
+1. kind.sh: Sanitized `kind_dir` before writing to $GITHUB_PATH using `printf '%s' "${kind_dir}" | tr -d '\n\r' >> "${GITHUB_PATH}"` followed by `echo >> "${GITHUB_PATH}"` to preserve the required newline terminator.
+2. kind.sh: Same sanitization applied to `kubectl_dir` before writing to $GITHUB_PATH.
+3. registry.sh: Sanitized both `registry_name` and `registry_port` into `safe_registry_name` and `safe_registry_port` using `printf '%s' ... | tr -d '\n\r'` before writing `LOCAL_REGISTRY=...` to $GITHUB_OUTPUT.
 

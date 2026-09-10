@@ -1,0 +1,40 @@
+name: Test custom kind config
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Write kind config file
+        run: |
+          cat > /tmp/kind-config.yaml << 'EOF'
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+          EOF
+
+      - id: action
+        uses: .
+        with:
+          config: /tmp/kind-config.yaml
+          cluster_name: test-config-cluster
+          wait: 60s
+
+      - name: Assert cluster is running
+        run: |
+          echo "Checking cluster nodes..."
+          kubectl get nodes
+          NODE_COUNT=$(kubectl get nodes --no-headers 2>/dev/null | wc -l)
+          echo "Node count: $NODE_COUNT"
+          if [ "$NODE_COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least 1 node"
+            exit 1
+          fi
+          echo "PASS: cluster is running with $NODE_COUNT node(s)"
+
+      - name: Cleanup cluster
+        if: always()
+        run: kind delete cluster --name test-config-cluster || true
