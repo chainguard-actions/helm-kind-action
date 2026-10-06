@@ -10,6 +10,7 @@ Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at
 |---------|-----|-----------------|
 | v1.14.0 | [`v1.14.0`](https://github.com/chainguard-actions/helm-kind-action/tree/v1.14.0) | [`ef37e7f`](https://github.com/helm/kind-action/commit/ef37e7f390d99f746eb8b610417061a60e82a6cc) |
 | v1.15.0 | [`v1.15.0`](https://github.com/chainguard-actions/helm-kind-action/tree/v1.15.0) | [`06c1ae1`](https://github.com/helm/kind-action/commit/06c1ae10762d3b9c1644e7fe69596ae519e015a2) |
+| v1.15.1 | [`v1.15.1`](https://github.com/chainguard-actions/helm-kind-action/tree/v1.15.1) | [`1544676`](https://github.com/helm/kind-action/commit/1544676c07bb3570fcb70166beaa07c4528fd4aa) |
 
 ## Privacy
 
