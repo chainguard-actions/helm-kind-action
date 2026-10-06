@@ -1,0 +1,24 @@
+name: Test version_file input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version_file: ${{ github.workspace }}/hardened/tests/fixtures/kind-version
+          install_only: "true"
+      - name: Assert kind is installed at the version from the file
+        run: |
+          echo "Checking kind version..."
+          KIND_VERSION=$(kind version 2>&1 | head -1)
+          echo "kind version output: $KIND_VERSION"
+          EXPECTED_VERSION="v0.33.0"
+          if ! echo "$KIND_VERSION" | grep -q "$EXPECTED_VERSION"; then
+            echo "FAIL: expected kind version $EXPECTED_VERSION but got: $KIND_VERSION"
+            exit 1
+          fi
+          echo "PASS: kind installed at version $EXPECTED_VERSION"

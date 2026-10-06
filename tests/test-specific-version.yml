@@ -1,0 +1,27 @@
+name: Test specific kind version
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: "v0.27.0"
+          install_only: "true"
+      - name: Assert kind is installed with correct version
+        run: |
+          echo "Checking kind version..."
+          if ! command -v kind &>/dev/null; then
+            echo "FAIL: kind binary not found in PATH"
+            exit 1
+          fi
+          KIND_VERSION="$(kind version 2>&1)"
+          echo "kind version output: $KIND_VERSION"
+          if ! echo "$KIND_VERSION" | grep -q "v0.27.0"; then
+            echo "FAIL: expected kind version v0.27.0 but got: $KIND_VERSION"
+            exit 1
+          fi
+          echo "PASS: kind v0.27.0 is installed"

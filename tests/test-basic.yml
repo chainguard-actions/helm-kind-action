@@ -1,0 +1,53 @@
+name: Test basic kind cluster creation
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          cluster_name: chart-testing
+          wait: "60s"
+      - name: Assert kind is installed
+        run: |
+          echo "Checking kind binary..."
+          if ! command -v kind &>/dev/null; then
+            echo "FAIL: kind binary not found in PATH"
+            exit 1
+          fi
+          KIND_VERSION="$(kind version 2>&1)"
+          echo "kind version: $KIND_VERSION"
+          echo "PASS: kind is installed"
+      - name: Assert kubectl is installed
+        run: |
+          echo "Checking kubectl binary..."
+          if ! command -v kubectl &>/dev/null; then
+            echo "FAIL: kubectl binary not found in PATH"
+            exit 1
+          fi
+          KUBECTL_VERSION="$(kubectl version --client 2>&1)"
+          echo "kubectl version: $KUBECTL_VERSION"
+          echo "PASS: kubectl is installed"
+      - name: Assert cluster is running
+        run: |
+          echo "Checking cluster..."
+          CLUSTERS="$(kind get clusters 2>&1)"
+          echo "clusters: $CLUSTERS"
+          if ! echo "$CLUSTERS" | grep -q "chart-testing"; then
+            echo "FAIL: expected cluster 'chart-testing' not found"
+            exit 1
+          fi
+          echo "PASS: cluster 'chart-testing' exists"
+      - name: Assert kubectl can reach the cluster
+        run: |
+          echo "Checking kubectl connectivity..."
+          NODES="$(kubectl get nodes 2>&1)"
+          echo "nodes: $NODES"
+          if [ $? -ne 0 ]; then
+            echo "FAIL: kubectl get nodes failed"
+            exit 1
+          fi
+          echo "PASS: kubectl can reach the cluster"

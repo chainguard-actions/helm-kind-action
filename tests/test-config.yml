@@ -1,0 +1,25 @@
+name: Test config input
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          config: ${{ github.workspace }}/hardened/tests/fixtures/kind-config.yaml
+          cluster_name: test-config-cluster
+          wait: "60s"
+      - name: Assert cluster is reachable
+        run: |
+          echo "Checking cluster nodes..."
+          kubectl get nodes
+          NODE_COUNT=$(kubectl get nodes --no-headers | wc -l)
+          echo "Node count: $NODE_COUNT"
+          if [ "$NODE_COUNT" -lt 1 ]; then
+            echo "FAIL: expected at least 1 node"
+            exit 1
+          fi
+          echo "PASS: cluster is running with $NODE_COUNT node(s)"
