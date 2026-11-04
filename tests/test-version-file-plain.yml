@@ -1,0 +1,25 @@
+name: Test version_file with plain version file (takes precedence over version)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          version: v0.27.0
+          version_file: tests/fixtures/kind-version
+          kubectl_version: v1.32.0
+          install_only: "true"
+          ignore_failed_clean: "true"
+      - name: Assert kind version comes from version_file
+        run: |
+          OUT="$(kind version)"
+          echo "kind version: $OUT"
+          if ! echo "$OUT" | grep -q "v0.29.0"; then
+            echo "FAIL: expected kind v0.29.0 from version_file"
+            exit 1
+          fi
+          echo "PASS"
