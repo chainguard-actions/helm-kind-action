@@ -80,8 +80,7 @@ main() {
     fi
 
     echo 'Adding kind directory to PATH...'
-    safe_kind_dir=$(printf '%s' "${kind_dir}" | tr -d '\n\r')
-    echo "${safe_kind_dir}" >> "${GITHUB_PATH}"
+    echo "${kind_dir}" >> "${GITHUB_PATH}"
 
     local kubectl_dir="${cache_dir}/kubectl/bin/"
     if [[ ! -x "${kubectl_dir}/kubectl" ]]; then
